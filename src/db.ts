@@ -60,7 +60,7 @@ export class DiaryDb {
     if (!segment) throw new Error('Missing segment');
     await this.enteredEmojis.updateOne(
       { entryId: entry._id, segmentIndex },
-      { $setOnInsert: {
+      { $set: {
         userId: entry.userId,
         entryId: entry._id,
         segmentIndex,

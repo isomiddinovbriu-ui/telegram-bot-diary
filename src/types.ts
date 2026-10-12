@@ -1,6 +1,6 @@
 import type { ObjectId } from 'mongodb';
 
-export type EntryStatus = 'question' | 'custom_emoji' | 'review' | 'edit' | 'sending' | 'final' | 'cancelled';
+export type EntryStatus = 'question' | 'custom_emoji' | 'review' | 'segment_select' | 'segment_emoji' | 'segment_custom' | 'edit' | 'sending' | 'final' | 'cancelled';
 
 export interface LearnedPhrase {
   phrase: string;
@@ -27,7 +27,7 @@ export interface Segment {
   body: string;
   separator: string;
   emoji: string | null;
-  source: 'rule' | 'learned' | 'answer' | 'skip' | null;
+  source: 'rule' | 'learned' | 'answer' | 'correction' | 'skip' | null;
 }
 
 export interface EnteredEmojiDoc {
@@ -50,6 +50,7 @@ export interface EntryDoc {
   proposedText: string | null;
   proposedSource?: 'bot' | 'user';
   reviewVersion?: number;
+  hasSegmentCorrections?: boolean;
   finalText: string | null;
   finalSource: 'bot' | 'user' | null;
   groupChatId?: string | null;

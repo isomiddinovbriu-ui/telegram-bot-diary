@@ -43,11 +43,12 @@ async function sendReview(ctx: Context, entry: EntryDoc): Promise<void> {
   await ctx.reply(`Tayyor variant:\n\n${entry.proposedText}\n\nTasdiqlasangiz, bot shu matnni guruhga yuboradi. Xohlasangiz avval tahrirlang.`, reviewKeyboard(entry));
 }
 
-async function answerQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc, emoji: string): Promise<void> {
+async function answerQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc, emoji: string, custom = false): Promise<void> {
   const index = entry.questionIndex;
   if (index === null) return;
   const segment = entry.segments[index];
   if (!segment) return;
+  if (custom) await db.saveEnteredEmoji(entry, index, emoji);
   segment.emoji = emoji;
   segment.source = emoji ? 'answer' : 'skip';
   if (emoji) {
@@ -142,7 +143,7 @@ export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegr
         await ctx.reply('Bitta emoji yuboring yoki yuqoridagi tugmalardan tanlang. /bekor bilan chiqishingiz mumkin.');
         return;
       }
-      await answerQuestion(db, ctx, active, emoji);
+      await answerQuestion(db, ctx, active, emoji, active.status === 'custom_emoji');
       return;
     }
     if (active?.status === 'edit') {

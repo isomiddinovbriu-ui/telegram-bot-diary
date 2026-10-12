@@ -34,10 +34,11 @@ npm.cmd start
 
 ## Ma’lumotlar bazasi
 
+- `entiries_entered`: “Boshqa emoji kiritaman” orqali yuborilgan tanlovlar tarixi. Har bir hujjatda foydalanuvchi IDsi, yozuv IDsi, parcha raqami va matni, emoji hamda kiritilgan vaqt bor. Tugmadan tanlangan emojilar bu collectionga yozilmaydi. Bot keyingi takliflar uchun avvalgidek `users.learnedPhrases`dan foydalanadi.
 - `users`: Telegram ID (`_id`), faol yozuv IDsi, o‘rgatilgan ibora→emoji tanlovlari, aynan takrorlangan matnlar uchun foydalanuvchi tahrirlari.
 - `entries`: asl matn, bo‘laklar va ularning emoji manbasi, bot taklifi, yakuniy matn, holat va guruhga yuborilgan xabarning IDsi.
 
-Ikkala collectionda ham TTL index yo‘q. Yozuvlar avtomatik o‘chmaydi. `entries`da foydalanuvchi va vaqt bo‘yicha index bor; bot tarixni shu orqali oladi. `users`dagi tezkor afzalliklar soni cheklangan, lekin yozuvlar tarixi `entries`da qoladi. MongoDB backupini muntazam olish tavsiya etiladi.
+Uchala collectionda ham TTL index yo‘q. Yozuvlar avtomatik o‘chmaydi. `entries`da foydalanuvchi va vaqt bo‘yicha index bor; bot tarixni shu orqali oladi. `users`dagi tezkor afzalliklar soni cheklangan, lekin yozuvlar tarixi `entries`da qoladi. MongoDB backupini muntazam olish tavsiya etiladi.
 
 ## Chegaralar
 

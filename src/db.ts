@@ -1,22 +1,25 @@
 import { MongoClient, ObjectId, type Collection } from 'mongodb';
-import type { EntryDoc, ExactOverride, LearnedPhrase, UserDoc } from './types.js';
+import type { EnteredEmojiDoc, EntryDoc, ExactOverride, LearnedPhrase, UserDoc } from './types.js';
 import { learnPhrase } from './emoji.js';
 
 export class DiaryDb {
   private client: MongoClient;
   readonly users: Collection<UserDoc>;
   readonly entries: Collection<EntryDoc>;
+  readonly enteredEmojis: Collection<EnteredEmojiDoc>;
 
   constructor(uri: string, databaseName: string) {
     this.client = new MongoClient(uri);
     const database = this.client.db(databaseName);
     this.users = database.collection<UserDoc>('users');
     this.entries = database.collection<EntryDoc>('entries');
+    this.enteredEmojis = database.collection<EnteredEmojiDoc>('entiries_entered');
   }
 
   async connect(): Promise<void> {
     await this.client.connect();
     await this.entries.createIndex({ userId: 1, createdAt: -1 });
+    await this.enteredEmojis.createIndex({ entryId: 1, segmentIndex: 1 }, { unique: true });
   }
 
   async close(): Promise<void> {
@@ -48,6 +51,24 @@ export class DiaryDb {
   async saveLearnedPhrase(user: UserDoc, phrase: string, emoji: string): Promise<void> {
     const learnedPhrases: LearnedPhrase[] = learnPhrase(user.learnedPhrases, phrase, emoji);
     await this.users.updateOne({ _id: user._id }, { $set: { learnedPhrases, updatedAt: new Date() } });
+  }
+
+  async saveEnteredEmoji(entry: EntryDoc, segmentIndex: number, emoji: string): Promise<void> {
+    if (!entry._id) throw new Error('Missing entry ID');
+    const segment = entry.segments[segmentIndex];
+    if (!segment) throw new Error('Missing segment');
+    await this.enteredEmojis.updateOne(
+      { entryId: entry._id, segmentIndex },
+      { $setOnInsert: {
+        userId: entry.userId,
+        entryId: entry._id,
+        segmentIndex,
+        segmentText: segment.body.trim(),
+        emoji,
+        createdAt: new Date()
+      } },
+      { upsert: true }
+    );
   }
 
   async saveExactOverride(user: UserDoc, originalText: string, finalText: string): Promise<void> {

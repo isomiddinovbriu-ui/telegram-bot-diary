@@ -30,6 +30,16 @@ export interface Segment {
   source: 'rule' | 'learned' | 'answer' | 'skip' | null;
 }
 
+export interface EnteredEmojiDoc {
+  _id?: ObjectId;
+  userId: string;
+  entryId: ObjectId;
+  segmentIndex: number;
+  segmentText: string;
+  emoji: string;
+  createdAt: Date;
+}
+
 export interface EntryDoc {
   _id?: ObjectId;
   userId: string;

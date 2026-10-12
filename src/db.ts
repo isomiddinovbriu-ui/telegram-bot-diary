@@ -1,0 +1,72 @@
+import { MongoClient, ObjectId, type Collection } from 'mongodb';
+import type { EntryDoc, ExactOverride, LearnedPhrase, UserDoc } from './types.js';
+import { learnPhrase } from './emoji.js';
+
+export class DiaryDb {
+  private client: MongoClient;
+  readonly users: Collection<UserDoc>;
+  readonly entries: Collection<EntryDoc>;
+
+  constructor(uri: string, databaseName: string) {
+    this.client = new MongoClient(uri);
+    const database = this.client.db(databaseName);
+    this.users = database.collection<UserDoc>('users');
+    this.entries = database.collection<EntryDoc>('entries');
+  }
+
+  async connect(): Promise<void> {
+    await this.client.connect();
+    await this.entries.createIndex({ userId: 1, createdAt: -1 });
+  }
+
+  async close(): Promise<void> {
+    await this.client.close();
+  }
+
+  async getUser(userId: string): Promise<UserDoc> {
+    const now = new Date();
+    await this.users.updateOne(
+      { _id: userId },
+      { $setOnInsert: { activeEntryId: null, learnedPhrases: [], exactOverrides: [], createdAt: now, updatedAt: now } },
+      { upsert: true }
+    );
+    const user = await this.users.findOne({ _id: userId });
+    if (!user) throw new Error('User could not be loaded');
+    return user;
+  }
+
+  async setActive(userId: string, entryId: ObjectId | null): Promise<void> {
+    await this.users.updateOne({ _id: userId }, { $set: { activeEntryId: entryId, updatedAt: new Date() } });
+  }
+
+  async getActiveEntry(userId: string): Promise<EntryDoc | null> {
+    const user = await this.getUser(userId);
+    if (!user.activeEntryId) return null;
+    return this.entries.findOne({ _id: user.activeEntryId, userId });
+  }
+
+  async saveLearnedPhrase(user: UserDoc, phrase: string, emoji: string): Promise<void> {
+    const learnedPhrases: LearnedPhrase[] = learnPhrase(user.learnedPhrases, phrase, emoji);
+    await this.users.updateOne({ _id: user._id }, { $set: { learnedPhrases, updatedAt: new Date() } });
+  }
+
+  async saveExactOverride(user: UserDoc, originalText: string, finalText: string): Promise<void> {
+    const exactOverrides: ExactOverride[] = [
+      { originalText, finalText, updatedAt: new Date() },
+      ...user.exactOverrides.filter((item) => item.originalText !== originalText)
+    ].slice(0, 100);
+    await this.users.updateOne({ _id: user._id }, { $set: { exactOverrides, updatedAt: new Date() } });
+  }
+
+  async updateEntry(entry: EntryDoc): Promise<void> {
+    if (!entry._id) throw new Error('Missing entry ID');
+    entry.updatedAt = new Date();
+    const { _id, ...data } = entry;
+    await this.entries.updateOne({ _id, userId: entry.userId }, { $set: data });
+  }
+
+  async getEntry(id: string, userId: string): Promise<EntryDoc | null> {
+    if (!ObjectId.isValid(id)) return null;
+    return this.entries.findOne({ _id: new ObjectId(id), userId });
+  }
+}

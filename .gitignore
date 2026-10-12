@@ -5,3 +5,4 @@ dist/
 *.log
 .npm-cache/
 .env.example
+README.md

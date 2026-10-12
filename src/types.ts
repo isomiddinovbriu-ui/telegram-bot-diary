@@ -1,6 +1,6 @@
 import type { ObjectId } from 'mongodb';
 
-export type EntryStatus = 'question' | 'custom_emoji' | 'review' | 'edit' | 'final' | 'cancelled';
+export type EntryStatus = 'question' | 'custom_emoji' | 'review' | 'edit' | 'sending' | 'final' | 'cancelled';
 
 export interface LearnedPhrase {
   phrase: string;
@@ -38,8 +38,12 @@ export interface EntryDoc {
   status: EntryStatus;
   questionIndex: number | null;
   proposedText: string | null;
+  proposedSource?: 'bot' | 'user';
+  reviewVersion?: number;
   finalText: string | null;
   finalSource: 'bot' | 'user' | null;
+  groupChatId?: string | null;
+  groupMessageId?: number | null;
   createdAt: Date;
   updatedAt: Date;
   finalizedAt: Date | null;

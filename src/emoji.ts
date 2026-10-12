@@ -79,6 +79,16 @@ export function validSingleEmoji(value: string): boolean {
   return chars.length === 1 && /\p{Extended_Pictographic}/u.test(chars[0]?.segment ?? '');
 }
 
+export function inferEmojiFromEdit(originalText: string, editedText: string): string | null {
+  if (/\p{Extended_Pictographic}/u.test(originalText)) return null;
+  const parts = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(editedText)].map((part) => part.segment);
+  const emojis = parts.filter((part) => /\p{Extended_Pictographic}/u.test(part));
+  if (emojis.length !== 1) return null;
+  const words = parts.filter((part) => !/\p{Extended_Pictographic}/u.test(part)).join('');
+  const withoutEmoji = words.replace(/\s+([.!?;,])/gu, '$1').trim();
+  return withoutEmoji === originalText.trim() ? emojis[0]! : null;
+}
+
 export function learnPhrase(learned: LearnedPhrase[], phrase: string, emoji: string): LearnedPhrase[] {
   const key = normalize(phrase.trim());
   if (!key || key.length > 160) return learned;

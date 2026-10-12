@@ -1,9 +1,14 @@
 import { Markup, Telegraf, type Context } from 'telegraf';
 import { DiaryDb } from './db.js';
-import { emojiChoices, nextQuestionIndex, renderSegments, splitSegments, validSingleEmoji } from './emoji.js';
+import { emojiChoices, inferEmojiFromEdit, nextQuestionIndex, renderSegments, splitSegments, validSingleEmoji } from './emoji.js';
 import type { EntryDoc, UserDoc } from './types.js';
 
 const MAX_TEXT_LENGTH = 2000;
+
+interface BotConfig {
+  ownerUserId: string;
+  groupChatId?: string;
+}
 
 function userId(ctx: Context): string | null {
   return ctx.from ? String(ctx.from.id) : null;
@@ -22,8 +27,10 @@ function questionKeyboard(entry: EntryDoc) {
 
 function reviewKeyboard(entry: EntryDoc) {
   const id = entry._id!.toHexString();
+  const version = entry.reviewVersion ?? 0;
   return Markup.inlineKeyboard([
-    [Markup.button.callback('✅ Tasdiqlash', `f:${id}`), Markup.button.callback('✏️ Tahrirlash', `e:${id}`)]
+    [Markup.button.callback('✅ Tasdiqlash va guruhga yuborish', `f:${id}:${version}`)],
+    [Markup.button.callback('✏️ Tahrirlash', `e:${id}:${version}`)]
   ]);
 }
 
@@ -33,7 +40,7 @@ async function sendQuestion(ctx: Context, entry: EntryDoc): Promise<void> {
 }
 
 async function sendReview(ctx: Context, entry: EntryDoc): Promise<void> {
-  await ctx.reply(`Tayyor variant:\n\n${entry.proposedText}\n\nXohlasangiz tasdiqlang yoki butun matnni tahrirlang.`, reviewKeyboard(entry));
+  await ctx.reply(`Tayyor variant:\n\n${entry.proposedText}\n\nTasdiqlasangiz, bot shu matnni guruhga yuboradi. Xohlasangiz avval tahrirlang.`, reviewKeyboard(entry));
 }
 
 async function answerQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc, emoji: string): Promise<void> {
@@ -51,6 +58,7 @@ async function answerQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc, emoji:
   if (entry.questionIndex === null) {
     entry.status = 'review';
     entry.proposedText = renderSegments(entry.segments);
+    entry.proposedSource = 'bot';
   } else {
     entry.status = 'question';
   }
@@ -71,8 +79,12 @@ async function createEntry(db: DiaryDb, ctx: Context, user: UserDoc, originalTex
     status: questionIndex === null ? 'review' : 'question',
     questionIndex,
     proposedText: exact?.finalText ?? (questionIndex === null ? renderSegments(segments) : null),
+    proposedSource: exact ? 'user' : 'bot',
+    reviewVersion: 0,
     finalText: null,
     finalSource: null,
+    groupChatId: null,
+    groupMessageId: null,
     createdAt: now,
     updatedAt: now,
     finalizedAt: null
@@ -84,17 +96,23 @@ async function createEntry(db: DiaryDb, ctx: Context, user: UserDoc, originalTex
   else await sendQuestion(ctx, entry);
 }
 
-export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
+export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegraf<Context> {
   const bot = new Telegraf(token);
 
+  bot.command('chatid', async (ctx) => {
+    if (String(ctx.from.id) !== config.ownerUserId) return;
+    if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') return;
+    await ctx.reply(`Guruh ID: ${ctx.chat.id}\nBuni .env faylidagi GROUP_CHAT_ID ga yozing va botni qayta ishga tushiring.`);
+  });
+
   bot.start(async (ctx) => {
-    if (ctx.chat.type !== 'private') return;
+    if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId) return;
     await db.getUser(String(ctx.from.id));
-    await ctx.reply('Salom! Kundalik matningizni yuboring. Men faqat emoji qo‘shaman. Noaniq joyda sizdan so‘rayman; yakunda tahrirlashingiz mumkin. /tarix — eski yozuvlar, /bekor — joriy yozuvni bekor qilish.');
+    await ctx.reply('Salom! Kundalik matningizni yuboring. Men faqat emoji qo‘shaman. Noaniq joyda sizdan so‘rayman; yakunda tahrirlab, tasdiqlaganingizdan keyin guruhga yuboraman. /tarix — eski yozuvlar, /bekor — joriy yozuvni bekor qilish.');
   });
 
   bot.command('tarix', async (ctx) => {
-    if (ctx.chat.type !== 'private') return;
+    if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId) return;
     const id = String(ctx.from.id);
     const entries = await db.entries.find({ userId: id, status: 'final' }).sort({ createdAt: -1 }).limit(5).toArray();
     if (!entries.length) return ctx.reply('Hozircha saqlangan yakuniy yozuv yo‘q.');
@@ -103,7 +121,7 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
   });
 
   bot.command('bekor', async (ctx) => {
-    if (ctx.chat.type !== 'private') return;
+    if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId) return;
     const id = String(ctx.from.id);
     const entry = await db.getActiveEntry(id);
     if (!entry) return ctx.reply('Hozir faol yozuv yo‘q.');
@@ -114,7 +132,7 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
   });
 
   bot.on('text', async (ctx) => {
-    if (ctx.chat.type !== 'private' || ctx.message.text.startsWith('/')) return;
+    if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId || ctx.message.text.startsWith('/')) return;
     const id = String(ctx.from.id);
     const text = ctx.message.text;
     const active = await db.getActiveEntry(id);
@@ -132,15 +150,12 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
         await ctx.reply('Tahrirlangan matn 2500 belgidan oshmasin.');
         return;
       }
-      active.finalText = text;
-      active.finalSource = 'user';
-      active.status = 'final';
-      active.finalizedAt = new Date();
+      active.proposedText = text;
+      active.proposedSource = 'user';
+      active.reviewVersion = (active.reviewVersion ?? 0) + 1;
+      active.status = 'review';
       await db.updateEntry(active);
-      const user = await db.getUser(id);
-      await db.saveExactOverride(user, active.originalText, text);
-      await db.setActive(id, null);
-      await ctx.reply(`Sizning tahriringiz yakuniy matn sifatida saqlandi:\n\n${text}`);
+      await sendReview(ctx, active);
       return;
     }
     if (active?.status === 'review') {
@@ -159,8 +174,12 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
     if (ctx.chat?.type !== 'private' || !('data' in ctx.callbackQuery)) return;
     const id = userId(ctx);
     if (!id) return;
+    if (id !== config.ownerUserId) {
+      await ctx.answerCbQuery('Bu bot siz uchun ochilmagan.');
+      return;
+    }
     const data = ctx.callbackQuery.data;
-    const match = /^(q|e|f):([a-f0-9]{24})(?::(\d+):([a-z]+))?$/u.exec(data);
+    const match = /^(q|e|f):([a-f0-9]{24})(?::(\d+)(?::([a-z]+))?)?$/u.exec(data);
     if (!match) return;
     const entry = await db.getEntry(match[2]!, id);
     const user = await db.getUser(id);
@@ -193,6 +212,10 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
       await ctx.answerCbQuery('Bu tugma endi faol emas.');
       return;
     }
+    if (Number(match[3] ?? 0) !== (entry.reviewVersion ?? 0)) {
+      await ctx.answerCbQuery('Eski tugma. Oxirgi ko‘rsatilgan matndan tanlang.');
+      return;
+    }
     if (action === 'e') {
       entry.status = 'edit';
       await db.updateEntry(entry);
@@ -201,14 +224,53 @@ export function createBot(token: string, db: DiaryDb): Telegraf<Context> {
       return;
     }
     if (action === 'f' && entry.proposedText !== null) {
-      entry.finalText = entry.proposedText;
-      entry.finalSource = 'bot';
+      if (!config.groupChatId) {
+        await ctx.answerCbQuery('GROUP_CHAT_ID sozlanmagan.');
+        await ctx.reply('Botni guruhga qo‘shing, guruhda /chatid yuboring va chiqqan IDni .env dagi GROUP_CHAT_ID ga yozib botni qayta ishga tushiring.');
+        return;
+      }
+      const claim = await db.entries.updateOne(
+        { _id: entry._id, userId: id, status: 'review' },
+        { $set: { status: 'sending', updatedAt: new Date() } }
+      );
+      if (claim.modifiedCount !== 1) {
+        await ctx.answerCbQuery('Bu yozuv allaqachon yuborilmoqda.');
+        return;
+      }
+      await ctx.answerCbQuery('Guruhga yuborilmoqda...');
+      let sentMessageId: number;
+      try {
+        const sent = await ctx.telegram.sendMessage(config.groupChatId, entry.proposedText);
+        sentMessageId = sent.message_id;
+      } catch (error) {
+        console.error('Group send failed:', error instanceof Error ? error.message : error);
+        await db.entries.updateOne(
+          { _id: entry._id, userId: id, status: 'sending' },
+          { $set: { status: 'review', updatedAt: new Date() } }
+        );
+        await ctx.reply('Guruhga yuborishda xato bo‘ldi. Avval guruhni tekshiring; xabar ko‘rinmasa, GROUP_CHAT_ID va botning yozish huquqini tekshirib, yana tasdiqlang.');
+        return;
+      }
       entry.status = 'final';
+      entry.finalText = entry.proposedText;
+      entry.finalSource = entry.proposedSource ?? 'bot';
       entry.finalizedAt = new Date();
-      await db.updateEntry(entry);
-      await db.setActive(id, null);
-      await ctx.answerCbQuery();
-      await ctx.reply(`Saqlandi. Guruhga o‘z nomingizdan yuborish uchun nusxalang:\n\n${entry.finalText}`);
+      entry.groupChatId = config.groupChatId;
+      entry.groupMessageId = sentMessageId;
+      try {
+        await db.updateEntry(entry);
+        await db.setActive(id, null);
+        if (entry.finalSource === 'user') {
+          await db.saveExactOverride(user, entry.originalText, entry.finalText);
+          const editedEmoji = inferEmojiFromEdit(entry.originalText, entry.finalText);
+          if (editedEmoji) await db.saveLearnedPhrase(user, entry.originalText.trim(), editedEmoji);
+        }
+      } catch (error) {
+        console.error('Group message sent but database update failed:', error instanceof Error ? error.message : error);
+        await ctx.reply('Xabar guruhga yuborildi, ammo bazaga saqlashda xato bo‘ldi. Qayta tasdiqlamang; server logini tekshiring.');
+        return;
+      }
+      await ctx.reply('Tasdiqlandi va guruhga yuborildi.');
     }
   });
 

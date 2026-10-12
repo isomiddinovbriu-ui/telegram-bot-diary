@@ -5,6 +5,7 @@ import type { EntryDoc, UserDoc } from './types.js';
 
 const MAX_TEXT_LENGTH = 2000;
 const SEGMENTS_PER_PAGE = 8;
+const MAX_SEARCH_LENGTH = 80;
 
 interface BotConfig {
   ownerUserId: string;
@@ -148,7 +149,7 @@ export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegr
   bot.start(async (ctx) => {
     if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId) return;
     await db.getUser(String(ctx.from.id));
-    await ctx.reply('Salom! Kundalik matningizni yuboring. Men faqat emoji qo‘shaman. Noaniq joyda sizdan so‘rayman; yakunda tahrirlab, tasdiqlaganingizdan keyin guruhga yuboraman. /tarix — eski yozuvlar, /bekor — joriy yozuvni bekor qilish.');
+    await ctx.reply('Salom! Kundalik matningizni yuboring. Men faqat emoji qo‘shaman. Noaniq joyda sizdan so‘rayman; yakunda tahrirlab, tasdiqlaganingizdan keyin guruhga yuboraman. /tarix — eski yozuvlar, /qidir so‘z — yozuvlarni qidirish, /bekor — joriy yozuvni bekor qilish.');
   });
 
   bot.command('tarix', async (ctx) => {
@@ -158,6 +159,32 @@ export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegr
     if (!entries.length) return ctx.reply('Hozircha saqlangan yakuniy yozuv yo‘q.');
     const text = entries.map((entry, index) => `${index + 1}. ${entry.createdAt.toLocaleDateString('uz-UZ')} — ${entry.finalText?.slice(0, 180) ?? ''}`).join('\n\n');
     await ctx.reply(`Oxirgi yozuvlar:\n\n${text}`);
+  });
+
+  bot.command('qidir', async (ctx) => {
+    if (ctx.chat.type !== 'private' || String(ctx.from.id) !== config.ownerUserId) return;
+    const query = ctx.message.text.replace(/^\/qidir(?:@\w+)?/iu, '').trim();
+    if (query.length < 2 || query.length > MAX_SEARCH_LENGTH) {
+      await ctx.reply('Qidirish uchun 2–80 belgili so‘z yoki ibora yozing. Masalan: /qidir xursand');
+      return;
+    }
+    const entries = await db.searchFinalEntries(String(ctx.from.id), query);
+    if (!entries.length) {
+      await ctx.reply(`“${query}” bo‘yicha yakuniy yozuv topilmadi.`);
+      return;
+    }
+    const dateFormat = new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', year: 'numeric', month: '2-digit', day: '2-digit' });
+    let message = `“${query}” bo‘yicha oxirgi ${entries.length} ta yozuv:`;
+    for (const [index, entry] of entries.entries()) {
+      const result = `\n\n${index + 1}. ${dateFormat.format(entry.createdAt)}\n${entry.finalText ?? ''}`;
+      if (message.length + result.length > 3900) {
+        await ctx.reply(message);
+        message = `Qidiruv davomi:${result}`;
+      } else {
+        message += result;
+      }
+    }
+    await ctx.reply(message);
   });
 
   bot.command('bekor', async (ctx) => {

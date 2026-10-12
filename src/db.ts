@@ -2,6 +2,10 @@ import { MongoClient, ObjectId, type Collection } from 'mongodb';
 import type { EnteredEmojiDoc, EntryDoc, ExactOverride, LearnedPhrase, UserDoc } from './types.js';
 import { learnPhrase } from './emoji.js';
 
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
 export class DiaryDb {
   private client: MongoClient;
   readonly users: Collection<UserDoc>;
@@ -100,5 +104,13 @@ export class DiaryDb {
   async getEntry(id: string, userId: string): Promise<EntryDoc | null> {
     if (!ObjectId.isValid(id)) return null;
     return this.entries.findOne({ _id: new ObjectId(id), userId });
+  }
+
+  async searchFinalEntries(userId: string, query: string, limit = 5): Promise<EntryDoc[]> {
+    return this.entries.find({
+      userId,
+      status: 'final',
+      finalText: new RegExp(escapeRegex(query), 'i')
+    }).sort({ createdAt: -1 }).limit(limit).toArray();
   }
 }

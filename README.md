@@ -7,7 +7,7 @@ Node.js + TypeScript + Telegraf + MongoDB bilan yozilgan shaxsiy kundalik boti. 
 1. Botga **shaxsiy chatda** matn yuboring. Bot so‘zlarni tahrirlamaydi, faqat emoji qo‘shadi.
 2. Kayfiyat noaniq yoki bir-biriga zid bo‘lgan bo‘lakda bot sizdan emoji so‘raydi. Tugmadan tanlash, o‘zingiz bitta emoji yuborish yoki emoji qo‘ymaslik mumkin. Qo‘lda eng ko‘p kiritgan 4 ta emojingiz ham tezkor tugma sifatida ko‘rinadi.
 3. Tayyor matnni tasdiqlang yoki to‘liq tahrirlab qayta yuboring. Tahrirdan keyin bot matnni yana ko‘rsatadi; sizning tahriringiz ustuvor bo‘ladi.
-4. **Tasdiqlash va guruhga yuborish** bosilganda bot yakuniy matnni `.env`dagi guruhga o‘z nomidan yuboradi. `/tarix` oxirgi 5 ta yakuniy yozuvni ko‘rsatadi; `/bekor` joriy yozuvni to‘xtatadi.
+4. **Tasdiqlash va guruhga yuborish** bosilganda bot yakuniy matnni `.env`dagi guruhga o‘z nomidan yuboradi. `/tarix` oxirgi 5 ta yakuniy yozuvni ko‘rsatadi; `/qidir so‘z` yakuniy matndan so‘z yoki iborani qidiradi; `/bekor` joriy yozuvni to‘xtatadi.
 
 Javob bergan iborangiz va emojingiz `users`da saqlanadi va keyingi mos yozuvlarda umumiy qoidadan ustun turadi. Tahrirlangan yakuniy matn `entries`da saqlanadi; aynan shu asl matn yana yuborilsa, tahrirlangan ko‘rinish taklif qilinadi. Tahrirda so‘zlar o‘zgarmay, faqat bitta emoji aniq qo‘shilgan bo‘lsa, o‘rgatilgan emoji ham yangilanadi. Murakkab erkin tahrirdan avtomatik qoida chiqarilmaydi, chunki qaysi so‘zga qaysi emoji tegishli ekani noaniq bo‘lishi mumkin.
 
@@ -39,6 +39,8 @@ npm.cmd start
 - `entries`: asl matn, bo‘laklar va ularning emoji manbasi, bot taklifi, yakuniy matn, holat va guruhga yuborilgan xabarning IDsi.
 
 Uchala collectionda ham TTL index yo‘q. Yozuvlar avtomatik o‘chmaydi. `entries`da foydalanuvchi va vaqt bo‘yicha index bor; bot tarixni shu orqali oladi. `users`dagi tezkor afzalliklar soni cheklangan, lekin yozuvlar tarixi `entries`da qoladi. MongoDB backupini muntazam olish tavsiya etiladi.
+
+`/qidir xursand` shaxsiy chatda ishlaydi: faqat o‘zingizning guruhga yuborilgan yakuniy matnlaringiz ichidan, katta-kichik harflarni farqlamasdan, oxirgi 5 ta mos yozuvni ko‘rsatadi. Qidiruv so‘zi oddiy matn sifatida olinadi; kamida 2, ko‘pi bilan 80 belgi bo‘lishi kerak.
 
 ## Chegaralar
 

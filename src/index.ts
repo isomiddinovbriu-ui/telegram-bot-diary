@@ -31,4 +31,14 @@ process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 await bot.launch();
+try {
+  await bot.telegram.setMyCommands([
+    { command: 'start', description: 'Botdan foydalanishni boshlash' },
+    { command: 'tarix', description: 'Oxirgi kundalik yozuvlari' },
+    { command: 'qidir', description: 'Yozuvlardan so‘z yoki ibora qidirish' },
+    { command: 'bekor', description: 'Joriy yozuvni bekor qilish' }
+  ], { scope: { type: 'chat', chat_id: Number(ownerUserId) } });
+} catch (error) {
+  console.warn('Telegram buyruqlar menyusini sozlab bo‘lmadi:', error instanceof Error ? error.message : error);
+}
 console.log('Emoji kundalik boti ishga tushdi.');

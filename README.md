@@ -32,6 +32,8 @@ npm.cmd start
 
 `start` buyrug‘i `prestart` orqali avval TypeScript kodini `dist/index.js`ga kompilyatsiya qiladi. Linux serverda `npm install`, `.env` sozlash va `npm run start` yetarli; agar faqat production dependency o‘rnatilsa, avval dev dependency bilan `npm run build` bajarish kerak. Windows PowerShell’da `npm` skripti bloklansa, yuqoridagi kabi `npm.cmd` ishlating. Lokal ishlab chiqishda `npm.cmd run dev` botni fayllar o‘zgarganda qayta ishga tushiradi. Bot polling bilan ishlaydi; bir token uchun bir vaqtning o‘zida faqat bitta nusxasini ishga tushiring.
 
+Bot ishga tushganda Telegram’dagi `/` menyusiga egasining shaxsiy chati uchun `/start`, `/tarix`, `/qidir` va `/bekor` buyruqlarini qo‘shadi. `/qidir` tanlangach, bo‘sh joydan keyin qidiriladigan so‘z yoki iborani yozing (masalan, `/qidir xursand`).
+
 ## Ma’lumotlar bazasi
 
 - `entiries_entered`: “Boshqa emoji kiritaman” orqali yuborilgan tanlovlar tarixi. Har bir hujjatda foydalanuvchi IDsi, yozuv IDsi, parcha raqami va matni, emoji hamda kiritilgan vaqt bor. Bot shu collectiondan tezkor tugmalarni hisoblaydi; tugmadan tanlangan emojilar bu yerga yozilmaydi. Matnga avtomatik emoji taklif qilish uchun `users.learnedPhrases` ishlatiladi.

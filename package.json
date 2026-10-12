@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "prestart": "npm run build",
     "start": "node dist/src/index.js",
     "typecheck": "tsc --noEmit",
     "test": "tsc && node dist/test/emoji.test.js"

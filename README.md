@@ -25,11 +25,10 @@ Copy-Item .env.example .env
 ```powershell
 npm.cmd run typecheck
 npm.cmd test
-npm.cmd run build
 npm.cmd start
 ```
 
-Windows PowerShell’da `npm` skripti bloklansa, yuqoridagi kabi `npm.cmd` ishlating. Lokal ishlab chiqishda `npm.cmd run dev` botni fayllar o‘zgarganda qayta ishga tushiradi. Bot polling bilan ishlaydi; bir token uchun bir vaqtning o‘zida faqat bitta nusxasini ishga tushiring.
+`start` buyrug‘i `prestart` orqali avval TypeScript kodini `dist`ga kompilyatsiya qiladi. Linux serverda `npm install`, `.env` sozlash va `npm run start` yetarli; agar faqat production dependency o‘rnatilsa, avval dev dependency bilan `npm run build` bajarish kerak. Windows PowerShell’da `npm` skripti bloklansa, yuqoridagi kabi `npm.cmd` ishlating. Lokal ishlab chiqishda `npm.cmd run dev` botni fayllar o‘zgarganda qayta ishga tushiradi. Bot polling bilan ishlaydi; bir token uchun bir vaqtning o‘zida faqat bitta nusxasini ishga tushiring.
 
 ## Ma’lumotlar bazasi
 

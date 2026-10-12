@@ -20,6 +20,7 @@ export class DiaryDb {
     await this.client.connect();
     await this.entries.createIndex({ userId: 1, createdAt: -1 });
     await this.enteredEmojis.createIndex({ entryId: 1, segmentIndex: 1 }, { unique: true });
+    await this.enteredEmojis.createIndex({ userId: 1, emoji: 1, createdAt: -1 });
   }
 
   async close(): Promise<void> {
@@ -69,6 +70,16 @@ export class DiaryDb {
       } },
       { upsert: true }
     );
+  }
+
+  async getFrequentEmojis(userId: string): Promise<Array<{ emoji: string; count: number }>> {
+    const results = await this.enteredEmojis.aggregate<{ _id: string; count: number }>([
+      { $match: { userId } },
+      { $group: { _id: '$emoji', count: { $sum: 1 }, lastUsedAt: { $max: '$createdAt' } } },
+      { $sort: { count: -1, lastUsedAt: -1, _id: 1 } },
+      { $limit: 4 }
+    ]).toArray();
+    return results.map((result) => ({ emoji: result._id, count: result.count }));
   }
 
   async saveExactOverride(user: UserDoc, originalText: string, finalText: string): Promise<void> {

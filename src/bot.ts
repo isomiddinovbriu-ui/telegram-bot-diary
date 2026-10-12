@@ -14,12 +14,17 @@ function userId(ctx: Context): string | null {
   return ctx.from ? String(ctx.from.id) : null;
 }
 
-function questionKeyboard(entry: EntryDoc) {
+function questionKeyboard(entry: EntryDoc, frequent: Array<{ emoji: string; count: number }>) {
   const id = entry._id!.toHexString();
   const index = entry.questionIndex!;
   const rows = [];
   for (let i = 0; i < emojiChoices.length; i += 2) {
     rows.push(emojiChoices.slice(i, i + 2).map((choice) => Markup.button.callback(choice.label, `q:${id}:${index}:${choice.code}`)));
+  }
+  for (let i = 0; i < frequent.length; i += 2) {
+    rows.push(frequent.slice(i, i + 2).map((item, offset) =>
+      Markup.button.callback(`${item.emoji} (${item.count})`, `q:${id}:${index}:p${i + offset}`)
+    ));
   }
   rows.push([Markup.button.callback('Boshqa emoji kiritaman', `q:${id}:${index}:custom`)]);
   return Markup.inlineKeyboard(rows);
@@ -34,9 +39,10 @@ function reviewKeyboard(entry: EntryDoc) {
   ]);
 }
 
-async function sendQuestion(ctx: Context, entry: EntryDoc): Promise<void> {
+async function sendQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc): Promise<void> {
   const segment = entry.segments[entry.questionIndex!];
-  await ctx.reply(`Bu parcha uchun qaysi emoji mos?\n\n“${segment?.body.trim()}”`, questionKeyboard(entry));
+  const frequent = await db.getFrequentEmojis(entry.userId);
+  await ctx.reply(`Bu parcha uchun qaysi emoji mos?\n\n“${segment?.body.trim()}”`, questionKeyboard(entry, frequent));
 }
 
 async function sendReview(ctx: Context, entry: EntryDoc): Promise<void> {
@@ -64,7 +70,7 @@ async function answerQuestion(db: DiaryDb, ctx: Context, entry: EntryDoc, emoji:
     entry.status = 'question';
   }
   await db.updateEntry(entry);
-  if (entry.status === 'question') await sendQuestion(ctx, entry);
+  if (entry.status === 'question') await sendQuestion(db, ctx, entry);
   else await sendReview(ctx, entry);
 }
 
@@ -94,7 +100,7 @@ async function createEntry(db: DiaryDb, ctx: Context, user: UserDoc, originalTex
   entry._id = result.insertedId;
   await db.setActive(user._id, result.insertedId);
   if (questionIndex === null) await sendReview(ctx, entry);
-  else await sendQuestion(ctx, entry);
+  else await sendQuestion(db, ctx, entry);
 }
 
 export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegraf<Context> {
@@ -180,7 +186,7 @@ export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegr
       return;
     }
     const data = ctx.callbackQuery.data;
-    const match = /^(q|e|f):([a-f0-9]{24})(?::(\d+)(?::([a-z]+))?)?$/u.exec(data);
+    const match = /^(q|e|f):([a-f0-9]{24})(?::(\d+)(?::([a-z0-9]+))?)?$/u.exec(data);
     if (!match) return;
     const entry = await db.getEntry(match[2]!, id);
     const user = await db.getUser(id);
@@ -201,6 +207,18 @@ export function createBot(token: string, db: DiaryDb, config: BotConfig): Telegr
         await db.updateEntry(entry);
         await ctx.answerCbQuery();
         await ctx.reply('Shu parcha uchun bitta emoji yuboring.');
+        return;
+      }
+      if (/^p[0-3]$/u.test(code ?? '')) {
+        const frequent = await db.getFrequentEmojis(id);
+        const selected = frequent[Number(code!.slice(1))];
+        if (!selected) {
+          await ctx.answerCbQuery('Bu tanlov yangilangan.');
+          await sendQuestion(db, ctx, entry);
+          return;
+        }
+        await ctx.answerCbQuery();
+        await answerQuestion(db, ctx, entry, selected.emoji);
         return;
       }
       const choice = emojiChoices.find((item) => item.code === code);

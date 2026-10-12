@@ -5,7 +5,7 @@ Node.js + TypeScript + Telegraf + MongoDB bilan yozilgan shaxsiy kundalik boti. 
 ## Ishlash tartibi
 
 1. Botga **shaxsiy chatda** matn yuboring. Bot so‘zlarni tahrirlamaydi, faqat emoji qo‘shadi.
-2. Kayfiyat noaniq yoki bir-biriga zid bo‘lgan bo‘lakda bot sizdan emoji so‘raydi. Tugmadan tanlash, o‘zingiz bitta emoji yuborish yoki emoji qo‘ymaslik mumkin.
+2. Kayfiyat noaniq yoki bir-biriga zid bo‘lgan bo‘lakda bot sizdan emoji so‘raydi. Tugmadan tanlash, o‘zingiz bitta emoji yuborish yoki emoji qo‘ymaslik mumkin. Qo‘lda eng ko‘p kiritgan 4 ta emojingiz ham tezkor tugma sifatida ko‘rinadi.
 3. Tayyor matnni tasdiqlang yoki to‘liq tahrirlab qayta yuboring. Tahrirdan keyin bot matnni yana ko‘rsatadi; sizning tahriringiz ustuvor bo‘ladi.
 4. **Tasdiqlash va guruhga yuborish** bosilganda bot yakuniy matnni `.env`dagi guruhga o‘z nomidan yuboradi. `/tarix` oxirgi 5 ta yakuniy yozuvni ko‘rsatadi; `/bekor` joriy yozuvni to‘xtatadi.
 
@@ -34,7 +34,7 @@ npm.cmd start
 
 ## Ma’lumotlar bazasi
 
-- `entiries_entered`: “Boshqa emoji kiritaman” orqali yuborilgan tanlovlar tarixi. Har bir hujjatda foydalanuvchi IDsi, yozuv IDsi, parcha raqami va matni, emoji hamda kiritilgan vaqt bor. Tugmadan tanlangan emojilar bu collectionga yozilmaydi. Bot keyingi takliflar uchun avvalgidek `users.learnedPhrases`dan foydalanadi.
+- `entiries_entered`: “Boshqa emoji kiritaman” orqali yuborilgan tanlovlar tarixi. Har bir hujjatda foydalanuvchi IDsi, yozuv IDsi, parcha raqami va matni, emoji hamda kiritilgan vaqt bor. Bot shu collectiondan tezkor tugmalarni hisoblaydi; tugmadan tanlangan emojilar bu yerga yozilmaydi. Matnga avtomatik emoji taklif qilish uchun `users.learnedPhrases` ishlatiladi.
 - `users`: Telegram ID (`_id`), faol yozuv IDsi, o‘rgatilgan ibora→emoji tanlovlari, aynan takrorlangan matnlar uchun foydalanuvchi tahrirlari.
 - `entries`: asl matn, bo‘laklar va ularning emoji manbasi, bot taklifi, yakuniy matn, holat va guruhga yuborilgan xabarning IDsi.
 
